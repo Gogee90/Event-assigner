@@ -1,0 +1,73 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:6.0.16-alpine
+    restart: always
+    command: redis-server
+    ports:
+      - "6379:6379"
+  nginx:
+    build: ./nginx/
+    image: nginx:latest
+    volumes:
+      - /static:/static
+      - ./media:/media
+    ports:
+      - "80:80"
+      - "443:443"
+    links:
+      - web:web
+    restart: always
+  db:
+    image: postgres:12.8-alpine
+    volumes:
+      - /postgres:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "5832:5432"
+    restart: always
+  celery:
+    build: .
+    command: celery -A event_asigner worker -l INFO
+    volumes:
+      - ./event_asigner/:/usr/src/app/
+    restart: on-failure
+    depends_on:
+      - redis
+  celery-beat:
+    build: .
+    command: celery -A event_asigner beat -l INFO
+    volumes:
+      - ./event_asigner/:/usr/src/app/
+    restart: on-failure
+    depends_on:
+      - redis
+  web:
+    build: .
+    command: >
+      sh -c "python manage.py collectstatic --noinput &&
+            python manage.py migrate &&
+            gunicorn event_asigner.wsgi --bind 0.0.0.0:8000
+            "
+    volumes:
+      - ./event_asigner/:/usr/src/app/
+      - /static:/static
+      - ./media:/media
+    ports:
+      - "8000:8000"
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    links:
+      - db:db
+
+volumes:
+  postgres_volume:
+  web_volume:
