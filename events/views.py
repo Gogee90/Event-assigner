@@ -58,13 +58,13 @@ class ListCreateRequest(ListCreateAPIView):
         if event.event_type.name == "test_event":
             topic = "Заявка на участие"
             message = f"Пользователь {user.username} оставил заявку на участие в событии {event_request.event.name}."
-            send_email(user.username, event.assigner.email, topic, message)
+            send_email(user.username, [event.assigner.email], topic, message)
         if event.event_type.name == "test_event2":
             topic = "Отклик"
             message = f"Пользователь {user.username} оставил отклик на событие {event_request.event.name}."
             send_email(
                 user.username,
-                event.assigner.email,
+                [event.assigner.email],
                 topic,
                 message,
                 event_request.attachment,
